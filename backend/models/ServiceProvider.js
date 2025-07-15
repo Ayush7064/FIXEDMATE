@@ -52,14 +52,26 @@ const providerSchema = new mongoose.Schema(
         type: [Number],
         default: [0, 0],
       },
+      city: {
+        type: String,
+        default: "",
+      },
+      pin: {
+        type: String,
+        default: "",
+      },
+      address: {
+        type: String,
+        default: "",
+      },
     },
     profilePic: {
       type: String,
-      default: "", // URL of uploaded image (to be added later)
+      default: "",
     },
     servicePic: {
       type: String,
-      default: "", // Optional second image for card
+      default: "",
     },
     rating: {
       type: Number,
@@ -75,19 +87,16 @@ const providerSchema = new mongoose.Schema(
   }
 );
 
-// Hash password before saving
 providerSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
-// Match password method
 providerSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
 providerSchema.index({ location: "2dsphere" });
-
 
 module.exports = mongoose.model("ServiceProvider", providerSchema);

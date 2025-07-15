@@ -13,22 +13,23 @@ exports.register = async (req, res) => {
   const { name, email, password, role, phone } = req.body;
 
   try {
+    if (!["user", "provider"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+
     let existing = await (role === "user"
       ? User.findOne({ email })
       : ServiceProvider.findOne({ email }));
 
-    if (existing) return res.status(400).json({ message: "Email already registered" });
+    if (existing) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
 
     let newUser;
     if (role === "user") {
       newUser = await User.create({ name, email, password, phone });
-    } if(role === "service-provider") {
-      newUser = await ServiceProvider.create({
-        name,
-        email,
-        password,
-        phone,
-      });
+    } else if (role === "provider") {
+      newUser = await ServiceProvider.create({ name, email, password, phone });
     }
 
     const token = generateToken(newUser._id, role);
@@ -49,6 +50,7 @@ exports.register = async (req, res) => {
 };
 
 
+
 // Login
 exports.login = async (req, res) => {
   const { email, password, role } = req.body;
@@ -58,7 +60,7 @@ exports.login = async (req, res) => {
     if (role === "user") {
       existing = await User.findOne({ email });
     } 
-    if(role==="service-provider") {
+    if(role==="provider") {
       existing = await ServiceProvider.findOne({ email });
     }
 

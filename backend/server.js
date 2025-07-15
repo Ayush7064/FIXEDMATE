@@ -23,10 +23,10 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 
-app.use("/api/providers", providerRoutes);
+app.use("/api/provider", providerRoutes);
 
-app.use("/api/users", userRoutes);
-app.use("/api/providers", providerRoutes);
+app.use("/api/user", userRoutes);
+
 
 app.use("/api/bookings", bookingRoutes);
 

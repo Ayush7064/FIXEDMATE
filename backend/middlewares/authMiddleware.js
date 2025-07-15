@@ -17,7 +17,7 @@ const protect = async (req, res, next) => {
       // Attach user/provider object to req
       if (decoded.role === "user") {
         req.user = await User.findById(decoded.id).select("-password");
-      } else if (decoded.role === "service-provider") {
+      } else if (decoded.role === "provider") {
         req.user = await ServiceProvider.findById(decoded.id).select("-password");
       }
 
