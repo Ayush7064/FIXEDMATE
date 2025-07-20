@@ -16,7 +16,7 @@ const { singleUpload } = require("../middlewares/multer2"); // 1. Import the mul
 router.post("/", protect, authorizeRoles("user"), singleUpload, createBooking);
 
 // --- NO CHANGES TO OTHER ROUTES ---
-router.get("/my", protect, getMyBookings);
+router.get("/my",protect, getMyBookings);
 
 // This is the new route you need to add
 router.get("/:bookingId", protect, getBookingById);

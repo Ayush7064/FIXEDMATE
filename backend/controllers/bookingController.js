@@ -69,7 +69,7 @@ exports.getMyBookings = async (req, res) => {
 
     if (req.role === "user") {
       bookings = await Booking.find({ user: req.user._id }).populate("provider", "-password");
-    } else if (req.role === "service-provider") {
+    } else if (req.role === "provider") {
       bookings = await Booking.find({ provider: req.user._id }).populate("user", "-password");
     } else {
       return res.status(403).json({ message: "Invalid role" });

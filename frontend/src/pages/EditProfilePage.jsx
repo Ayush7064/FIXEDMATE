@@ -30,6 +30,7 @@ const EditProfilePage = () => {
         address: storedUser.address || "",
       }));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleChange = (e) => {

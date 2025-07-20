@@ -19,6 +19,7 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
     },
+    // --- UPDATED LOCATION FIELD ---
     location: {
       type: {
         type: String,
@@ -28,6 +29,27 @@ const userSchema = new mongoose.Schema(
       coordinates: {
         type: [Number], // [longitude, latitude]
         default: [0, 0],
+      },
+      city: {
+        type: String,
+        default: "",
+      },
+      pin: {
+        type: String,
+        default: "",
+      },
+      address: {
+        type: String,
+        default: "",
+      },
+    },
+    // --- ADDED PROFILE PICTURE FIELD ---
+    profilePic: {
+      public_id: {
+        type: String,
+      },
+      url: {
+        type: String,
       },
     },
     role: {

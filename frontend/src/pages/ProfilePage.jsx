@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import useAuthStore from '../store/useAuthStore'; // Assuming path is correct
+import useAuthStore from  "../store/useAuthStore" // Assuming path is correct
 import { Mail, Phone, ArrowRight } from 'lucide-react';
 
 const ProfilePage = () => {
@@ -15,7 +15,7 @@ const ProfilePage = () => {
     );
   }
 
-  // A simple check to see if the profile is "complete" for a provider.
+  // A simple check to see if the profile is "complete".
   // This logic can be expanded as needed.
   const isProfileComplete = user.phone && user.name;
   const profileCompletionPercentage = isProfileComplete ? 100 : 50;
@@ -36,7 +36,6 @@ const ProfilePage = () => {
             <div className="flex flex-col sm:flex-row items-center gap-6 mb-8">
               <div className="avatar">
                 <div className="w-24 rounded-full ring ring-blue-500 ring-offset-base-100 ring-offset-4">
-                  {/* CORRECTED: Removed duplicate attributes from img tag */}
                   <img 
                     src={user.profilePic?.url || `https://ui-avatars.com/api/?name=${user.name}&background=0D80F2&color=fff&size=128`} 
                     alt="Profile" 
@@ -64,15 +63,11 @@ const ProfilePage = () => {
           </div>
 
           {/* Complete Profile Card (Right) - Only for Providers */}
-          {/* CORRECTED: Ensured this card is a sibling within the grid and the parent div closes correctly */}
-          {user.role === "provider" && (
+          {user.role === 'provider' && (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
-              
-              {/* Top section with text and progress bar */}
               <div>
-                <h3 className="text-lg font-semibold text-slate-700">Profile Completion</h3>
-                <p className="text-sm text-slate-500 mt-1">Keep your profile updated for the best experience.</p>
-                
+                <h3 className="text-lg font-semibold text-slate-700">Provider Profile</h3>
+                <p className="text-sm text-slate-500 mt-1">Keep your service profile updated for clients.</p>
                 <div className="my-4">
                   <progress 
                     className="progress progress-primary w-full" 
@@ -82,17 +77,37 @@ const ProfilePage = () => {
                   <p className="text-right text-sm font-medium text-primary">{profileCompletionPercentage}% Complete</p>
                 </div>
               </div>
-              
-              {/* Bottom section with the link/button */}
               <Link to={`/provider/profile/${user.id}`} className="btn btn-primary w-full mt-4">
+                {isProfileComplete ? 'Edit Provider Profile' : 'Complete Provider Profile'}
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Link>
+            </div>
+          )}
+
+          {/* ✅ NEW: Complete Profile Card (Right) - Only for Users */}
+          {user.role === 'user' && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-700">Profile Completion</h3>
+                <p className="text-sm text-slate-500 mt-1">Keep your profile updated for the best experience.</p>
+                <div className="my-4">
+                  <progress 
+                    className="progress progress-primary w-full" 
+                    value={profileCompletionPercentage} 
+                    max="100"
+                  ></progress>
+                  <p className="text-right text-sm font-medium text-primary">{profileCompletionPercentage}% Complete</p>
+                </div>
+              </div>
+              {/* This link should point to your user edit page route */}
+              <Link to={`/profile/edit-user/${user.id}`} className="btn btn-primary w-full mt-4">
                 {isProfileComplete ? 'Edit Profile' : 'Complete Your Profile'}
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
-              
             </div>
           )}
-        </div> {/* This is the correct closing tag for the grid */}
 
+        </div>
       </div>
     </div>
   );

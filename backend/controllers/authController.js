@@ -54,6 +54,7 @@ exports.register = async (req, res) => {
 // Login
 exports.login = async (req, res) => {
   const { email, password, role } = req.body;
+  console.log(req.body);
 
   try {
     let existing;
