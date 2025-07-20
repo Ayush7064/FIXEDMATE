@@ -65,13 +65,15 @@ const providerSchema = new mongoose.Schema(
         default: "",
       },
     },
+    // CORRECTED: Changed from String to an Object to store URL and public_id
     profilePic: {
-      type: String,
-      default: "",
+      url: { type: String, default: "" },
+      public_id: { type: String, default: "" }
     },
+    // CORRECTED: Changed from String to an Object to store URL and public_id
     servicePic: {
-      type: String,
-      default: "",
+      url: { type: String, default: "" },
+      public_id: { type: String, default: "" }
     },
     rating: {
       type: Number,
@@ -87,6 +89,8 @@ const providerSchema = new mongoose.Schema(
   }
 );
 
+// --- Mongoose Middleware & Methods ---
+
 providerSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   this.password = await bcrypt.hash(this.password, 10);
@@ -97,6 +101,7 @@ providerSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
+// --- Geospatial Index ---
 providerSchema.index({ location: "2dsphere" });
 
 module.exports = mongoose.model("ServiceProvider", providerSchema);

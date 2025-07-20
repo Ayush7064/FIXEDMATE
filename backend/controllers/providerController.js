@@ -1,19 +1,30 @@
 const ServiceProvider = require("../models/ServiceProvider");
 
+
 exports.updateProviderProfile = async (req, res) => {
   try {
     const {
-      id, // renamed from providerId
+      id,
       serviceType,
       description,
-      location,
+      city,
+      pin,
+      address,
+      coordinates, // stringified in frontend
     } = req.body;
 
-    // Authorization: Ensure the logged-in user is the one making the request
     if (req.user._id.toString() !== id) {
       return res
         .status(403)
         .json({ message: "You can only update your own profile" });
+    }
+
+    // Parse coordinates safely
+    let parsedCoordinates = [0, 0];
+    try {
+      parsedCoordinates = JSON.parse(coordinates);
+    } catch (e) {
+      return res.status(400).json({ message: "Invalid coordinates format" });
     }
 
     const updateData = {
@@ -21,12 +32,29 @@ exports.updateProviderProfile = async (req, res) => {
       description,
       location: {
         type: "Point",
-        coordinates: location.coordinates, // [lng, lat]
-        city: location.city,
-        pin: location.pin,
-        address: location.address || "",
+        coordinates: parsedCoordinates,
+        city,
+        pin,
+        address,
       },
     };
+
+    // ✅ Use req.files to handle multiple, named file uploads
+   // Handle Profile Picture
+      if (req.files && req.files.profilePic) {
+      const profilePicFile = req.files.profilePic[0];
+     updateData.profilePic = {
+      url: profilePicFile.path,
+      public_id: profilePicFile.filename,
+     };
+    }
+    // Handle uploaded image
+    if (req.file && req.file.path && req.file.filename) {
+      updateData.servicePic = {
+        url: req.file.path,
+        public_id: req.file.filename,
+      };
+    }
 
     const updatedProvider = await ServiceProvider.findByIdAndUpdate(
       id,
@@ -45,6 +73,7 @@ exports.updateProviderProfile = async (req, res) => {
       .json({ message: "Server error", error: err.message });
   }
 };
+
 
 
 // ✅ Route to get provider profile by token

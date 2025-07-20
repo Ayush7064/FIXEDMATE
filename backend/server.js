@@ -14,6 +14,21 @@ const swaggerUi = require("swagger-ui-express");
 const YAML = require("yamljs");
 const swaggerDocument = YAML.load("./docs/API.yaml");
 
+
+const cloudinary = require('cloudinary').v2; // Make sure cloudinary is imported    0
+// Load environment variables
+dotenv.config();
+
+// =======================================================
+// ✅ ADD THIS CLOUDINARY CONFIGURATION
+// =======================================================
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+
 dotenv.config();
 connectDB();
 

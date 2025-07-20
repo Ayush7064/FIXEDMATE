@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import useProviderProfileStore from "../store/useProviderProfileStore";
 import { toast } from "react-toastify";
 
 const EditProfilePage = () => {
-  const { updateProfile, loading, error, success } = useProviderProfileStore();
+  const navigate = useNavigate();
+  const storedUser = JSON.parse(localStorage.getItem("user"));
 
-  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-
-  const isAuthenticated = !!storedUser;
+  const { updateProfile, loading } = useProviderProfileStore();
 
   const [formData, setFormData] = useState({
     serviceType: "",
@@ -16,163 +15,210 @@ const EditProfilePage = () => {
     city: "",
     pin: "",
     address: "",
+    proilepic : null,
+    servicePic: null,
   });
 
   useEffect(() => {
-    if (storedUser?.role === "provider") {
-      setFormData({
+    if (storedUser) {
+      setFormData((prev) => ({
+        ...prev,
         serviceType: storedUser.serviceType || "",
         description: storedUser.description || "",
-        city: storedUser.location?.city || "",
-        pin: storedUser.location?.pin || "",
-        address: storedUser.location?.address || "",
-      });
+        city: storedUser.city || "",
+        pin: storedUser.pin || "",
+        address: storedUser.address || "",
+      }));
     }
   }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // ✅ Made this handler generic to work for any file input
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    if (files[0]) {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: files[0], // Use the input's name to update state
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(formData);
-    const res = await updateProfile(formData, storedUser?.id); // ✅ Send ID
-    if (res) toast.success("Profile updated!");
-    console.log(res);
+
+    try {
+      const locationRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?city=${formData.city}&postalcode=${formData.pin}&format=json`
+      );
+      const locationData = await locationRes.json();
+
+      if (!locationData.length) {
+        toast.error("❌ Location not found. Please check city and PIN.");
+        return;
+      }
+
+      const coordinates = [
+        parseFloat(locationData[0].lon),
+        parseFloat(locationData[0].lat),
+      ];
+
+      const dataToSend = new FormData();
+      dataToSend.append("id", storedUser?.id || "");
+      console.log(formData);
+      dataToSend.append("serviceType", formData.serviceType);
+      dataToSend.append("description", formData.description);
+      dataToSend.append("city", formData.city);
+      dataToSend.append("pin", formData.pin);
+      dataToSend.append("address", formData.address || "");
+      dataToSend.append("coordinates", JSON.stringify(coordinates));
+      
+      // Append profile picture if it exists
+      if (formData.profilePic) { // ✅ Add profilePic to FormData
+        dataToSend.append("profilePic", formData.profilePic);
+      }
+      
+      // Append service picture if it exists
+      if (formData.servicePic) {
+        dataToSend.append("servicePic", formData.servicePic);
+      }
+
+      for (let pair of dataToSend.entries()) {
+        console.log(`${pair[0]}:`, pair[1]);
+      }
+
+      const res = await updateProfile(dataToSend);
+
+      if (res) {
+        toast.success("✅ Profile updated successfully!");
+        navigate("/profile");
+      } else {
+        toast.error("❌ Failed to update profile.");
+      }
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      toast.error("❌ An unexpected error occurred.");
+    }
   };
 
-  if (!isAuthenticated || storedUser?.role !== "provider") {
-    return (
-      <div className="text-center mt-10 text-lg font-semibold text-red-500">
-        Access Denied. Only service providers can access this page.
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-2xl mx-auto px-6 py-12">
-      <motion.h2
-        className="text-3xl font-bold text-gray-800 mb-8 text-center"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        Edit Your Service Profile
-      </motion.h2>
+    <div className="max-w-2xl mx-auto mt-8 p-6 bg-white rounded-lg shadow-md">
+      <h2 className="text-2xl font-semibold mb-6">Edit Your Service Profile</h2>
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-2xl shadow-xl space-y-6 border border-gray-100"
-      >
-        {/* Service Type */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Service Type
-          </label>
-          <select
-            name="serviceType"
-            value={formData.serviceType}
-            onChange={handleChange}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
-            required
-          >
-            <option value="">Select a service</option>
-            <option value="electrician">Electrician</option>
-            <option value="plumber">Plumber</option>
-            <option value="carpenter">Carpenter</option>
-            <option value="ac technician">AC Technician</option>
-            <option value="painter">Painter</option>
-            <option value="driver">Driver</option>
-            <option value="mechanic">Mechanic</option>
-            <option value="cleaner">Cleaner</option>
-            <option value="technician">Technician</option>
-            <option value="pest control">Pest Control</option>
-            <option value="appliance repair">Appliance Repair</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <select
+          name="serviceType"
+          value={formData.serviceType}
+          onChange={handleChange}
+          className="w-full border border-gray-300 rounded px-3 py-2 mt-1"
+          required
+        >
+          <option value="">Select a service</option>
+          <option value="ac technician">AC Technician</option>
+          <option value="appliance repair">Appliance Repair</option>
+          <option value="carpenter">Carpenter</option>
+          <option value="electrician">Electrician</option>
+          <option value="cleaner">House Cleaning</option>
+          <option value="mechanic">Mechanic</option>
+          <option value="painter">Painter</option>
+          <option value="pest control">Pest Control</option>
+          <option value="plumber">Plumber</option>
+          <option value="driver">Driver</option>
+          <option value="gardener">Gardener</option>
+          <option value="technician">Technician</option>
+          <option value="other">Other</option>
+        </select>
 
         {/* Description */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Description
-          </label>
+          <label className="block font-medium">Description</label>
           <textarea
             name="description"
-            rows={4}
             value={formData.description}
             onChange={handleChange}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+            rows="3"
+            className="w-full border border-gray-300 rounded px-3 py-2 mt-1"
             required
-          />
+          ></textarea>
         </div>
 
         {/* City */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            City
-          </label>
+          <label className="block font-medium">City</label>
           <input
             type="text"
             name="city"
             value={formData.city}
             onChange={handleChange}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+            className="w-full border border-gray-300 rounded px-3 py-2 mt-1"
             required
           />
         </div>
 
         {/* PIN Code */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            PIN Code
-          </label>
+          <label className="block font-medium">PIN Code</label>
           <input
-            type="text"
+            type="number"
             name="pin"
             value={formData.pin}
             onChange={handleChange}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+            className="w-full border border-gray-300 rounded px-3 py-2 mt-1"
             required
           />
         </div>
 
         {/* Address */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Address <span className="text-xs text-gray-400">(optional)</span>
-          </label>
+          <label className="block font-medium">Full Address</label>
           <input
             type="text"
             name="address"
             value={formData.address}
             onChange={handleChange}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+            className="w-full border border-gray-300 rounded px-3 py-2 mt-1"
+            required
           />
         </div>
 
-        {/* Error / Success */}
-        {error && <p className="text-red-500 text-sm">{error}</p>}
-        {success && <p className="text-green-600 text-sm">{success}</p>}
+         {/* ✅ Profile Image Upload */}
+        <div>
+          <label className="block font-medium">Upload Profile Picture</label>
+          <input
+            type="file"
+            name="profilePic" // Name matches state property
+            onChange={handleFileChange}
+            accept="image/*"
+            className="w-full mt-1"
+          />
+        </div>
 
-        {/* Submit Button */}
+        {/* Service Image Upload */}
+        <div>
+          <label className="block font-medium">Upload Service Picture</label>
+          <input
+            type="file"
+            name="servicePic"
+            onChange={handleFileChange}
+            accept="image/*"
+            className="w-full mt-1"
+          />
+        </div>
+
         <button
           type="submit"
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-xl transition duration-200 shadow-sm"
           disabled={loading}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded"
         >
           {loading ? "Updating..." : "Update Profile"}
         </button>
       </form>
     </div>
   );
-}
-
-
+};
 
 export default EditProfilePage;

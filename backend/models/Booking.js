@@ -24,6 +24,19 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       required: [true, "Please describe the issue"],
     },
+    // --- ADDED THIS FIELD ---
+    // This will store the details of the uploaded image from Cloudinary
+    issueImage: {
+      public_id: {
+        type: String,
+        required: false, // Set to true if an image is always required
+      },
+      url: {
+        type: String,
+        required: false, // Set to true if an image is always required
+      },
+    },
+    // -----------------------
     status: {
       type: String,
       enum: ["pending", "accepted", "in-progress", "completed", "rejected"],
@@ -35,7 +48,7 @@ const bookingSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true,
+    timestamps: true, // Automatically adds createdAt and updatedAt fields
   }
 );
 

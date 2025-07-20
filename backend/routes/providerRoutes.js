@@ -7,6 +7,7 @@ const {
   getNearbyProviders,
   getProviderById,
 } = require("../controllers/providerController");
+const upload = require("../middlewares/multer");
 
 const { protect, authorizeRoles } = require("../middlewares/authMiddleware");
 
@@ -15,6 +16,12 @@ router.patch(
   "/profile",
   protect,
   authorizeRoles("provider"),
+  // ✅ CHANGED: Use .fields() to accept two different image files
+  upload.fields([
+    { name: "profilePic", maxCount: 1 },
+    { name: "servicePic", maxCount: 1 },
+  ]),
+  
   updateProviderProfile
 );
 

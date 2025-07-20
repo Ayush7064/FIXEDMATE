@@ -1,7 +1,18 @@
 const Booking = require("../models/Booking");
+const cloudinary = require("cloudinary").v2;
+
+// IMPORTANT: Configure Cloudinary in your main app file (e.g., server.js)
+// with your credentials. You can get these from your Cloudinary dashboard.
+// cloudinary.config({
+//   cloud_name: 'YOUR_CLOUD_NAME',
+//   api_key: 'YOUR_API_KEY',
+//   api_secret: 'YOUR_API_SECRET',
+// });
 
 
+// This is the corrected createBooking function
 exports.createBooking = async (req, res) => {
+  // Thanks to multer, req.body will now contain the text fields
   const { date, time, description } = req.body;
   const providerId = req.query.providerId;
 
@@ -10,22 +21,47 @@ exports.createBooking = async (req, res) => {
   }
 
   try {
-    const booking = await Booking.create({
+    const bookingPayload = {
       user: req.user._id,
       provider: providerId,
       date,
       time,
       description,
-    });
+    };
+
+    // Check if a file was uploaded (req.file is added by multer)
+    if (req.file) {
+      // Create a base64 string from the file buffer
+      const fileStr = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+
+      // Upload the image to Cloudinary
+      const uploadResponse = await cloudinary.uploader.upload(fileStr, {
+        folder: "fixmate/bookings", // Optional: organize uploads in a folder
+        resource_type: "image",
+      });
+
+      // Add image details to our payload
+      bookingPayload.issueImage = {
+        public_id: uploadResponse.public_id,
+        url: uploadResponse.secure_url,
+      };
+    }
+
+    const booking = await Booking.create(bookingPayload);
 
     res.status(201).json({
       message: "Booking request sent",
       booking,
     });
   } catch (err) {
+    console.error("Booking creation failed:", err);
     res.status(500).json({ message: "Failed to create booking", error: err.message });
   }
 };
+
+
+// --- NO CHANGES NEEDED FOR OTHER CONTROLLER FUNCTIONS ---
+// (getMyBookings, updateBookingStatus, etc. remain the same)
 
 exports.getMyBookings = async (req, res) => {
   try {
@@ -48,6 +84,33 @@ exports.getMyBookings = async (req, res) => {
   }
 };
 
+// =================================================================
+// ✅ NEW CONTROLLER FUNCTION
+// --- GET A SINGLE BOOKING BY ID ---
+exports.getBookingById = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.bookingId)
+      .populate("provider", "-password") // Populate provider details
+      .populate("user", "-password");     // Populate user details
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    // Security check: Ensure the person requesting is either the user or the provider
+    const isUser = booking.user._id.toString() === req.user._id.toString();
+    const isProvider = booking.provider._id.toString() === req.user._id.toString();
+
+    if (!isUser && !isProvider) {
+        return res.status(403).json({ message: "Not authorized to view this booking" });
+    }
+
+    res.status(200).json({ booking });
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching booking details", error: err.message });
+  }
+};
+// =================================================================
 
 exports.updateBookingStatus = async (req, res) => {
   const { bookingId } = req.params;
@@ -64,14 +127,12 @@ exports.updateBookingStatus = async (req, res) => {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    // Only provider who owns the booking can update it
     if (booking.provider.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Not authorized to update this booking" });
     }
 
     booking.status = status;
 
-    // Share contact only if accepted
     if (status === "accepted") {
       booking.contactShared = true;
     }
@@ -95,7 +156,6 @@ exports.getBookingContact = async (req, res) => {
 
     if (!booking) return res.status(404).json({ message: "Booking not found" });
 
-    // Only the user who made the booking can view contact
     if (booking.user.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Unauthorized" });
     }

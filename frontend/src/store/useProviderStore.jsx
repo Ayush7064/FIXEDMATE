@@ -76,6 +76,23 @@ const useProviderStore = create((set) => ({
 
       return { providers: filtered };
     }),
+
+    
+    fetchProviderById: async (id) => {
+    try {
+      set({ loading: true, error: null });
+
+      const res = await axiosInstance.get(`/provider/${id}`);
+
+      set({
+        selectedProvider: res.data.provider,
+        loading: false,
+      });
+    } catch (err) {
+      console.error("Error fetching provider by ID:", err);
+      set({ selectedProvider: null, error: true, loading: false });
+    }
+  },
 }));
 
 export default useProviderStore;

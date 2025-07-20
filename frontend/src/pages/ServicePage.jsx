@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
+// eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 import useProviderStore from '../store/useProviderStore';
 import ErrorMessage from '../components/ErrorMessage';
+import { Link } from 'react-router-dom'; // ⬅️ Add at top
+
 
 const ServicePage = () => {
   const {
@@ -19,6 +22,7 @@ const ServicePage = () => {
   // ✅ Fetch providers using geolocation on initial load
   useEffect(() => {
     fetchProvidersWithGeo();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ✅ Filter providers whenever filters change
@@ -29,6 +33,7 @@ const ServicePage = () => {
   const handleRefresh = () => {
     fetchProvidersWithGeo(); // 🔄 Manual refresh
   };
+  
 
   if (loading) {
     return (
@@ -54,6 +59,7 @@ const ServicePage = () => {
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+      
       <div className="flex flex-row justify-between items-center mb-8">
         <motion.h1
           className="text-2xl sm:text-3xl font-semibold"
@@ -75,7 +81,7 @@ const ServicePage = () => {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6 items-center">
         <select
-          className="select select-bordered w-full sm:w-60"
+          className="select select-info"
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
         >
@@ -88,7 +94,7 @@ const ServicePage = () => {
         </select>
 
         <select
-          className="select select-bordered w-full sm:w-40"
+          className="select select-info"
           value={minRating}
           onChange={(e) => setMinRating(parseFloat(e.target.value))}
         >
@@ -101,36 +107,39 @@ const ServicePage = () => {
       </div>
 
       {/* Providers List */}
+      
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full p-4">
-        {providers.map((provider) => (
-          <motion.div
-            key={provider._id}
-            className="bg-white rounded-lg overflow-hidden gap-12 w-90 h-96 transition-transform duration-300 hover:shadow-lg hover:scale-[1.02]"
-            whileHover={{ scale: 1.02 }}
-          >
-            <div className="relative w-full h-70 group rounded-t-lg overflow-hidden">
-              <img
-                src={provider.servicePic}
-                alt={provider.name}
-                className="w-full h-full object-cover transition duration-300"
-              />
-              <div className="absolute inset-0 bg-white/10 backdrop-blur-sm opacity-0 group-hover:opacity-30 transition-opacity duration-300" />
-            </div>
+  {providers.map((provider) => (
+    <Link to={`/provider/${provider._id}`} key={provider._id}>
+      <motion.div
+        className="bg-white rounded-lg overflow-hidden gap-12 w-90 h-96 transition-transform duration-300 hover:shadow-lg hover:scale-[1.02]"
+        whileHover={{ scale: 1.02 }}
+      >
+        <div className="relative w-full h-70 group rounded-t-lg overflow-hidden">
+          <img
+            src={provider.servicePic?.url || provider.servicePic || 'https://via.placeholder.com'}
+            alt={provider.name}
+            className="w-full h-full object-cover transition duration-300"
+          />
+          <div className="absolute inset-0 bg-white/10 backdrop-blur-sm opacity-0 group-hover:opacity-30 transition-opacity duration-300" />
+        </div>
 
-            <div className="p-4">
-              <h3 className="text-lg font-semibold text-gray-800 truncate">
-                {provider.name}
-              </h3>
-              <p className="text-sm text-blue-600 capitalize">
-                {provider.serviceType || 'Service'}
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                ⭐ {provider.rating?.toFixed(1) || 0} • {provider.distanceInKm} km away
-              </p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+        <div className="p-4">
+          <h3 className="text-lg font-semibold text-gray-800 truncate">
+            {provider.name}
+          </h3>
+          <p className="text-sm text-blue-600 capitalize">
+            {provider.serviceType || 'Service'}
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            ⭐ {provider.rating?.toFixed(1) || 0} • {provider.distanceInKm} km away
+          </p>
+        </div>
+      </motion.div>
+    </Link>
+  ))}
+</div>
+
     </div>
   );
 };

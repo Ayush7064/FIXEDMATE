@@ -9,6 +9,13 @@ import Footer from "./components/Footer";
 import ServicePage from "./pages/ServicePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import EditProfilePage from "./pages/EditProfilePage";
+import ProviderDetails from './pages/ProviderDetailsPage';
+import MyBookingsPage from "./pages/MyBookingPage";
+import BookingDetailPage from "./pages/BookingDetailPage";
+import ProfilePage from "./pages/ProfilePage";
+
+
+
 
 function App() {
   return (
@@ -29,7 +36,11 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/provider/edit-profile" element={<EditProfilePage/>} />
+          <Route path="/provider/profile/:id" element={<EditProfilePage/>} />
+          <Route path="/provider/:id" element={<ProviderDetails />} />
+          <Route path = "/my-bookings" element ={<MyBookingsPage/>} />
+          <Route path="/booking/:bookingId" element={<BookingDetailPage />} />
+          <Route path = "/profile" element ={<ProfilePage/>} />
 
         </Routes>
         <Footer />
