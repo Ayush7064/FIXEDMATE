@@ -2,9 +2,16 @@ const ServiceProvider = require("../models/ServiceProvider");
 
 
 exports.updateProviderProfile = async (req, res) => {
+  // The logs you provided are very helpful! They show the data is arriving.
+  console.log("Received Body:", req.body);
+  console.log("Received Files:", req.files);
+
   try {
+    // We will use the authenticated user's ID from the token (req.user._id)
+    // instead of the one from the body for better security.
+    const providerId = req.user._id;
+
     const {
-      id,
       serviceType,
       description,
       city,
@@ -13,16 +20,12 @@ exports.updateProviderProfile = async (req, res) => {
       coordinates, // stringified in frontend
     } = req.body;
 
-    if (req.user._id.toString() !== id) {
-      return res
-        .status(403)
-        .json({ message: "You can only update your own profile" });
-    }
-
     // Parse coordinates safely
     let parsedCoordinates = [0, 0];
     try {
-      parsedCoordinates = JSON.parse(coordinates);
+      if (coordinates) {
+        parsedCoordinates = JSON.parse(coordinates);
+      }
     } catch (e) {
       return res.status(400).json({ message: "Invalid coordinates format" });
     }
@@ -39,31 +42,38 @@ exports.updateProviderProfile = async (req, res) => {
       },
     };
 
-    // ✅ Use req.files to handle multiple, named file uploads
-   // Handle Profile Picture
-      if (req.files && req.files.profilePic) {
+    // Handle Profile Picture
+    if (req.files && req.files.profilePic) {
       const profilePicFile = req.files.profilePic[0];
-     updateData.profilePic = {
-      url: profilePicFile.path,
-      public_id: profilePicFile.filename,
-     };
-    }
-    // Handle uploaded image
-    if (req.file && req.file.path && req.file.filename) {
-      updateData.servicePic = {
-        url: req.file.path,
-        public_id: req.file.filename,
+      updateData.profilePic = {
+        url: profilePicFile.path,
+        public_id: profilePicFile.filename,
       };
     }
 
+    // Handle Service Picture
+    if (req.files && req.files.servicePic) {
+      const servicePicFile = req.files.servicePic[0];
+      updateData.servicePic = {
+        url: servicePicFile.path,
+        public_id: servicePicFile.filename,
+      };
+    }
+
+    // ✅ FIX: Use the authenticated providerId from the token to find and update.
     const updatedProvider = await ServiceProvider.findByIdAndUpdate(
-      id,
+      providerId,
       updateData,
       { new: true, runValidators: true }
     ).select("-password");
 
+    // ✅ ADDED: Check if the provider was actually found and updated.
+    if (!updatedProvider) {
+      return res.status(404).json({ message: "Provider not found." });
+    }
+
     return res.status(200).json({
-      message: "Profile updated",
+      message: "Profile updated successfully",
       provider: updatedProvider,
     });
   } catch (err) {
@@ -73,7 +83,6 @@ exports.updateProviderProfile = async (req, res) => {
       .json({ message: "Server error", error: err.message });
   }
 };
-
 
 
 // ✅ Route to get provider profile by token
