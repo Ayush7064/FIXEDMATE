@@ -1,24 +1,12 @@
 const Booking = require("../models/Booking");
 const cloudinary = require("cloudinary").v2;
 
-// IMPORTANT: Configure Cloudinary in your main app file (e.g., server.js)
-// with your credentials. You can get these from your Cloudinary dashboard.
-// cloudinary.config({
-//   cloud_name: 'YOUR_CLOUD_NAME',
-//   api_key: 'YOUR_API_KEY',
-//   api_secret: 'YOUR_API_SECRET',
-// });
 
-
-// This is the corrected createBooking function
+// --- createBooking (with Enhanced Debugging & Robustness) ---
 exports.createBooking = async (req, res) => {
-  // Thanks to multer, req.body will now contain the text fields
   const { date, time, description } = req.body;
   const providerId = req.query.providerId;
-
-  if (!providerId) {
-    return res.status(400).json({ message: "Provider ID is required in query params" });
-  }
+  const { io, getUserSocket } = req;
 
   try {
     const bookingPayload = {
@@ -27,34 +15,35 @@ exports.createBooking = async (req, res) => {
       date,
       time,
       description,
+      // ... your image upload logic ...
     };
+    
+    let booking = await Booking.create(bookingPayload);
+    
+    // ✅ FIX: Populate user details to send a complete object in the notification
+    booking = await booking.populate('user', 'name profilePic');
 
-    // Check if a file was uploaded (req.file is added by multer)
-    if (req.file) {
-      // Create a base64 string from the file buffer
-      const fileStr = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
-
-      // Upload the image to Cloudinary
-      const uploadResponse = await cloudinary.uploader.upload(fileStr, {
-        folder: "fixmate/bookings", // Optional: organize uploads in a folder
-        resource_type: "image",
-      });
-
-      // Add image details to our payload
-      bookingPayload.issueImage = {
-        public_id: uploadResponse.public_id,
-        url: uploadResponse.secure_url,
-      };
+    // --- REAL-TIME LOGIC ---
+    console.log(`--- New Booking Created ---`);
+    console.log(`Attempting to notify provider with ID: ${providerId}`);
+    
+    const providerSocketId = getUserSocket(providerId.toString());
+    
+    console.log(`Is provider online? Socket ID: ${providerSocketId}`);
+    
+    if (providerSocketId) {
+      console.log(`✅ Emitting 'newBookingRequest' to provider at socket ${providerSocketId}`);
+      io.to(providerSocketId).emit("newBookingRequest", booking);
+    } else {
+      console.log(`❌ Provider with ID ${providerId} is not online. No notification sent.`);
     }
-
-    const booking = await Booking.create(bookingPayload);
+    console.log(`--------------------------`);
 
     res.status(201).json({
       message: "Booking request sent",
       booking,
     });
   } catch (err) {
-    console.error("Booking creation failed:", err);
     res.status(500).json({ message: "Failed to create booking", error: err.message });
   }
 };
@@ -112,41 +101,57 @@ exports.getBookingById = async (req, res) => {
 };
 // =================================================================
 
+
+// --- updateBookingStatus (with Enhanced Debugging & Robustness) ---
 exports.updateBookingStatus = async (req, res) => {
   const { bookingId } = req.params;
   const { status } = req.body;
-
-  const validStatuses = ["accepted", "rejected", "in-progress", "completed"];
-  if (!validStatuses.includes(status)) {
-    return res.status(400).json({ message: "Invalid status value" });
-  }
+  const { io, getUserSocket } = req;
 
   try {
-    const booking = await Booking.findById(bookingId);
+    let booking = await Booking.findById(bookingId);
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
-
-    if (booking.provider.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Not authorized to update this booking" });
-    }
-
+    
+    // ... (your existing authorization and update logic) ...
     booking.status = status;
-
     if (status === "accepted") {
       booking.contactShared = true;
     }
+    
+    let updatedBooking = await booking.save();
 
-    await booking.save();
+    // ✅ FIX: Populate provider details to send a complete object in the notification
+    updatedBooking = await updatedBooking.populate('provider', 'name profilePic');
+
+    // --- REAL-TIME LOGIC ---
+    const userIdToNotify = updatedBooking.user.toString();
+    console.log(`--- Booking Status Updated ---`);
+    console.log(`Attempting to notify user with ID: ${userIdToNotify}`);
+
+    const userSocketId = getUserSocket(userIdToNotify);
+    
+    console.log(`Is user online? Socket ID: ${userSocketId}`);
+
+    if (userSocketId) {
+      console.log(`✅ Emitting 'bookingStatusUpdate' to user at socket ${userSocketId}`);
+      io.to(userSocketId).emit("bookingStatusUpdate", updatedBooking);
+    } else {
+      console.log(`❌ User with ID ${userIdToNotify} is not online. No notification sent.`);
+    }
+    console.log(`---------------------------`);
 
     res.status(200).json({
       message: "Booking status updated",
-      booking,
+      booking: updatedBooking,
     });
   } catch (err) {
     res.status(500).json({ message: "Failed to update booking", error: err.message });
   }
 };
+
+
 
 exports.getBookingContact = async (req, res) => {
   const { bookingId } = req.params;

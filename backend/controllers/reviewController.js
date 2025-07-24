@@ -1,62 +1,78 @@
-const Review = require("../models/Review");
-const Booking = require("../models/Booking");
+/* eslint-disable */
 
-// ✅ Submit Review (User only)
-exports.submitReview = async (req, res) => {
-  const { providerId, rating, comment } = req.body;
+// =================================================================
+// 1. Create a new file: backend/controllers/reviewController.js
+// =================================================================
+const Review = require('../models/Review');
+const Booking = require('../models/Booking');
+const ServiceProvider = require('../models/ServiceProvider');
+
+// --- Define controller functions ---
+
+const createReview = async (req, res) => {
+  const { bookingId, rating, comment } = req.body;
+  const userId = req.user._id;
 
   try {
-    // Ensure booking is completed
-    const booking = await Booking.findOne({
-      user: req.user._id,
-      provider: providerId,
-      status: "completed",
-    });
+    const booking = await Booking.findById(bookingId);
 
+    // 1. Validations
     if (!booking) {
-      return res.status(400).json({ message: "You can only review after completing a booking" });
+      return res.status(404).json({ message: "Booking not found." });
+    }
+    if (booking.user.toString() !== userId.toString()) {
+      return res.status(403).json({ message: "You can only review your own bookings." });
+    }
+    const existingReview = await Review.findOne({ booking: bookingId });
+    if (existingReview) {
+      return res.status(400).json({ message: "You have already reviewed this booking." });
     }
 
-    // Check if already reviewed
-    const existing = await Review.findOne({
-      user: req.user._id,
-      provider: providerId,
-    });
-
-    if (existing) {
-      return res.status(400).json({ message: "You have already reviewed this provider" });
-    }
-
+    // 2. Create and save the new review
     const review = await Review.create({
-      user: req.user._id,
-      provider: providerId,
+      user: userId,
+      provider: booking.provider,
+      booking: bookingId,
       rating,
       comment,
     });
 
-    res.status(201).json({ message: "Review submitted", review });
-  } catch (err) {
-    res.status(500).json({ message: "Failed to submit review", error: err.message });
-  }
-};
+    // 3. Update the provider's average rating
+    const providerReviews = await Review.find({ provider: booking.provider });
+    const totalRating = providerReviews.reduce((acc, item) => item.rating + acc, 0);
+    const averageRating = totalRating / providerReviews.length;
 
-// ✅ Get All Reviews for Provider
-exports.getProviderReviews = async (req, res) => {
-  const providerId = req.params.providerId;
-
-  try {
-    const reviews = await Review.find({ provider: providerId })
-      .populate("user", "name");
-
-    const avgRating =
-      reviews.reduce((acc, r) => acc + r.rating, 0) / (reviews.length || 1);
-
-    res.status(200).json({
-      averageRating: avgRating.toFixed(1),
-      totalReviews: reviews.length,
-      reviews,
+    await ServiceProvider.findByIdAndUpdate(booking.provider, {
+      rating: averageRating.toFixed(1), // Keep one decimal place
     });
+
+    res.status(201).json({ message: "Review submitted successfully", review });
+
   } catch (err) {
-    res.status(500).json({ message: "Error fetching reviews", error: err.message });
+    console.error("Create Review Error:", err);
+    res.status(500).json({ message: "Server error while creating review." });
   }
 };
+
+const getProviderReviews = async (req, res) => {
+    try {
+        const reviews = await Review.find({ provider: req.params.providerId })
+            .populate('user', 'name profilePic') // Get user's name and picture
+            .sort({ createdAt: -1 }); // Show newest reviews first
+
+        res.status(200).json({
+            count: reviews.length,
+            reviews,
+        });
+    } catch (err) {
+        console.error("Get Reviews Error:", err);
+        res.status(500).json({ message: "Server error while fetching reviews." });
+    }
+};
+
+// --- Export all functions in a single object ---
+module.exports = {
+    createReview,
+    getProviderReviews,
+};
+

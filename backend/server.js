@@ -2,6 +2,9 @@ const express = require("express");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const cors = require("cors");
+const http = require('http'); // 1. Import the http module
+const { Server } = require("socket.io");
+
 const authRoutes = require("./routes/authRoutes");
 const providerRoutes = require("./routes/providerRoutes");
 const userRoutes = require("./routes/userRoutes");
@@ -42,6 +45,61 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE' ,'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*", // In production, you should restrict this to your frontend URL
+    methods: ["GET", "POST"]
+  }
+});
+
+// --- 4. Logic for Managing Connected Users ---
+let onlineUsers = new Map(); // Use a Map to store userId -> socketId
+const addUser = (userId, socketId) => {
+  !onlineUsers.has(userId) && onlineUsers.set(userId, socketId);
+};
+
+const removeUser = (socketId) => {
+  for (let [key, value] of onlineUsers.entries()) {
+    if (value === socketId) {
+      onlineUsers.delete(key);
+      break;
+    }
+  }
+}
+
+const getUserSocket = (userId) => {
+  return onlineUsers.get(userId);
+};
+
+// --- 5. Socket.IO Connection Logic ---
+io.on("connection", (socket) => {
+  console.log(`🔌 A user connected: ${socket.id}`);
+
+  // Listen for a user connecting with their userId
+  socket.on("addUser", (userId) => {
+    addUser(userId, socket.id);
+    console.log("Online users:", Array.from(onlineUsers.keys()));
+  });
+
+  // Handle disconnection
+  socket.on("disconnect", () => {
+    removeUser(socket.id);
+    console.log(`🔌 A user disconnected: ${socket.id}`);
+    console.log("Online users:", Array.from(onlineUsers.keys()));
+  });
+});
+
+// --- 6. Make Socket.IO and user map accessible to your routes ---
+// This middleware attaches `io` and `getUserSocket` to every request object
+app.use((req, res, next) => {
+  req.io = io;
+  req.getUserSocket = getUserSocket;
+  next();
+});
 
 app.use("/api/auth", authRoutes);
 
